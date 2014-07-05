@@ -1,20 +1,59 @@
+import sublime
 import subprocess
 import os
+import os.path
 
 # Used for output suppression when calling subprocess functions; see
 # http://stackoverflow.com/questions/10251391/suppressing-output-in-python-subprocess-call
 devnull = open(os.devnull, 'w')
 
-def all_ignored_files(folder):
+def update_file_exclude_patterns():
+    """
+    Updates the "file_exclude_patterns" preference to include all .gitignored
+    files.
+    
+    Also includes any additional files or folders listed in the
+    "extra_file_exclude_patterns" and "extra_folder_exclude_patterns" settings.
+    """
+    s = sublime.load_settings("Preferences.sublime-settings")
+    file_exclude_patterns = s.get('extra_file_exclude_patterns', [])
+    folder_exclude_patterns = s.get('extra_folder_exclude_patterns', [])
+    for path in all_ignored_paths():
+        if os.path.isdir(path):
+            folder_exclude_patterns.append(path.rstrip('/'))
+        else:
+            file_exclude_patterns.append(path)
+    s.set('file_exclude_patterns', file_exclude_patterns)
+    s.set('folder_exclude_patterns', folder_exclude_patterns)
+    sublime.save_settings("Preferences.sublime-settings")
+
+def all_ignored_paths():
+    """
+    Returns a list of all .gitignored files or folders contained in repos
+    contained within or containing any folders open in any open windows.
+    """
+    
+    open_folders = set()
+    for window in sublime.windows():
+        open_folders.update(window.folders())
+    
+    all_ignored_paths = set()
+    for folder in open_folders:
+        ignored_paths = folder_ignored_paths(folder)
+        all_ignored_paths.update(ignored_paths)
+        
+    return list(all_ignored_paths)
+
+def folder_ignored_paths(folder):
     """
     Returns a list (without duplicates, in the case of weird repo-nesting) of
-    all files within the given folder that are git ignored.
+    all files/folders within the given folder that are git ignored.
     
     The folder itself need not be the top level of a git repo, nor even within 
     a git repo.
     """
     
-    all_ignored_files = set()
+    all_ignored_paths = set()
     
     # First find all repos CONTAINED in this folder:
     repos = set(find_git_repos(folder))
@@ -24,12 +63,12 @@ def all_ignored_files(folder):
     if is_in_git_repo(folder):
         repos.add(parent_repo_path(folder))
     
-    # Now we find all the ignored files in any of the above repos
+    # Now we find all the ignored paths in any of the above repos
     for git_repo in repos:
-        ignored_files = list_ignored_files(git_repo)
-        all_ignored_files.update(ignored_files)
+        ignored_paths = repo_ignored_paths(git_repo)
+        all_ignored_paths.update(ignored_paths)
             
-    return list(all_ignored_files)
+    return list(all_ignored_paths)
 
 def is_in_git_repo(folder):
     """
@@ -47,7 +86,8 @@ def is_in_git_repo(folder):
 
 def parent_repo_path(folder):
     """
-    Takes the path to a folder contained within a git repo, and returns the parent repo.
+    Takes the path to a folder contained within a git repo, and returns the
+    parent repo.
     """
     
     return subprocess.Popen(
@@ -75,9 +115,10 @@ def find_git_repos(folder):
     
     return [path.replace('/.git', '') for path in dot_git_folders]
 
-def list_ignored_files(git_repo):
+def repo_ignored_paths(git_repo):
     """
-    Takes the path of a git repo and lists all ignored files in the repo.
+    Takes the path of a git repo and lists all ignored files/folders in the
+    repo.
     """
         
     # Trick for listing ignored files nicked from
