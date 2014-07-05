@@ -2,10 +2,26 @@ import sublime
 import subprocess
 import os
 import os.path
+import threading
+from time import sleep
 
 # Used for output suppression when calling subprocess functions; see
 # http://stackoverflow.com/questions/10251391/suppressing-output-in-python-subprocess-call
 devnull = open(os.devnull, 'w')
+
+def start(): # Gets invoked at the bottom of this file.
+    """
+    Regularly (every 5s) updates the file_exclude_patterns setting from a
+    background thread.
+    """
+    def run():
+        while True:
+            update_file_exclude_patterns()
+            sleep(5)
+            
+    thread = threading.Thread(target=run)
+    thread.daemon = True
+    thread.start()
 
 def update_file_exclude_patterns():
     """
@@ -23,9 +39,19 @@ def update_file_exclude_patterns():
             folder_exclude_patterns.append(path.rstrip('/'))
         else:
             file_exclude_patterns.append(path)
-    s.set('file_exclude_patterns', file_exclude_patterns)
-    s.set('folder_exclude_patterns', folder_exclude_patterns)
-    sublime.save_settings("Preferences.sublime-settings")
+    
+    # Only make changes if anything has actually changed, to avoid spamming the
+    # sublime console
+    new_files = set(file_exclude_patterns)
+    old_files = set(s.get('file_exclude_patterns', []))
+    new_folders = set(folder_exclude_patterns)
+    old_folders = set(s.get('folder_exclude_patterns', []))
+    
+    
+    if new_files != old_files or new_folders != old_folders:        
+        s.set('file_exclude_patterns', file_exclude_patterns)
+        s.set('folder_exclude_patterns', folder_exclude_patterns)
+        sublime.save_settings("Preferences.sublime-settings")
 
 def all_ignored_paths():
     """
@@ -140,3 +166,5 @@ def repo_ignored_paths(git_repo):
     absolute_paths = [git_repo + '/' + path for path in relative_paths]
     
     return absolute_paths
+    
+start()
