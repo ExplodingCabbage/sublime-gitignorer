@@ -14,6 +14,10 @@ def start(): # Gets invoked at the bottom of this file.
     Regularly (every 5s) updates the file_exclude_patterns setting from a
     background thread.
     """
+    if is_first_launch():
+        migrate_exclude_patterns()
+        record_first_launch()
+    
     def run():
         while True:
             update_file_exclude_patterns()
@@ -170,5 +174,26 @@ def repo_ignored_paths(git_repo):
     absolute_paths = [git_repo + u'/' + path for path in relative_paths]
     
     return absolute_paths
+    
+def is_first_launch():
+    s = sublime.load_settings("gitignorer.sublime-settings")
+    return not s.get('_sublime_gitignorer_has_run', False)
+    
+def migrate_exclude_patterns():
+    """
+    Runs on first launch; purpose is to prevent people who have already set
+    exclusion patterns from losing them when they install this package.
+    """
+    s = sublime.load_settings("Preferences.sublime-settings")
+    existing_file_exclude_patterns = s.get('file_exclude_patterns', [])
+    existing_folder_exclude_patterns = s.get('folder_exclude_patterns', [])
+    s.set('extra_file_exclude_patterns', existing_file_exclude_patterns)
+    s.set('extra_folder_exclude_patterns', existing_folder_exclude_patterns)
+    sublime.save_settings("Preferences.sublime-settings")
+    
+def record_first_launch():
+    s = sublime.load_settings("gitignorer.sublime-settings")
+    s.set('_sublime_gitignorer_has_run', True)
+    sublime.save_settings("gitignorer.sublime-settings")
     
 start()
