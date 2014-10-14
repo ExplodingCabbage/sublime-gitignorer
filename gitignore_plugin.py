@@ -36,7 +36,7 @@ def update_file_exclude_patterns():
     folder_exclude_patterns = s.get('extra_folder_exclude_patterns', [])
     for path in all_ignored_paths():
         if os.path.isdir(path):
-            folder_exclude_patterns.append(path.rstrip('/'))
+            folder_exclude_patterns.append(path.rstrip(u'/'))
         else:
             file_exclude_patterns.append(path)
     
@@ -120,7 +120,7 @@ def parent_repo_path(folder):
         ['git', 'rev-parse', '--show-toplevel'],
         stdout=subprocess.PIPE,
         cwd=folder
-    ).stdout.read().strip()
+    ).stdout.read().decode('utf-8', 'ignore').strip()
 
 def find_git_repos(folder):
     """
@@ -134,12 +134,14 @@ def find_git_repos(folder):
         stdout=subprocess.PIPE
     ).stdout.read()
     
-    if command_output.isspace() or command_output == '':
+    command_output = command_output.decode('utf-8', 'ignore')
+    
+    if command_output.isspace() or command_output == u'':
         return []
     
-    dot_git_folders = command_output.strip().split('\n')
+    dot_git_folders = command_output.strip().split(u'\n')
     
-    return [path.replace('/.git', '') for path in dot_git_folders]
+    return [path.replace(u'/.git', u'') for path in dot_git_folders]
 
 def repo_ignored_paths(git_repo):
     """
@@ -155,15 +157,17 @@ def repo_ignored_paths(git_repo):
         cwd=git_repo
     ).stdout.read()
     
-    if command_output.isspace() or command_output == '':
-        return []
+    command_output = command_output.decode('utf-8', 'ignore')
+    
+    if command_output.isspace() or command_output == u'':
+        return []   
        
-    lines = command_output.strip().split('\n')
+    lines = command_output.strip().split(u'\n')
     # Each line in `lines` now looks something like:
     # "Would remove foo/bar/yourfile.txt"
     
-    relative_paths = [line.replace('Would remove ', '', 1) for line in lines]
-    absolute_paths = [git_repo + '/' + path for path in relative_paths]
+    relative_paths = [line.replace(u'Would remove ', u'', 1) for line in lines]
+    absolute_paths = [git_repo + u'/' + path for path in relative_paths]
     
     return absolute_paths
     
