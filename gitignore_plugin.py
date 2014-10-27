@@ -131,21 +131,9 @@ def find_git_repos(folder):
     Returns a list of all git repos within the given ancestor folder.
     """
     
-    # Command for finding git repos nicked from
-    # http://sixarm.com/about/git-how-to-find-git-repository-directories.html
-    command_output = subprocess.Popen(
-        ['find', folder, '-type', 'd', '-name', '.git'],
-        stdout=subprocess.PIPE
-    ).stdout.read()
-    
-    command_output = command_output.decode('utf-8', 'ignore')
-    
-    if command_output.isspace() or command_output == u'':
-        return []
-    
-    dot_git_folders = command_output.strip().split(u'\n')
-    
-    return [path.replace(u'/.git', u'') for path in dot_git_folders]
+    return [root for root, subfolders, files
+                 in os.walk(folder)
+                 if '.git' in subfolders]
 
 def repo_ignored_paths(git_repo):
     """
