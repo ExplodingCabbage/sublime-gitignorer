@@ -44,14 +44,13 @@ def update_file_exclude_patterns():
         else:
             file_exclude_patterns.append(path)
     
-    # Only make changes if anything has actually changed, to avoid spamming the
-    # sublime console
     new_files = set(file_exclude_patterns)
     old_files = set(s.get('file_exclude_patterns', []))
     new_folders = set(folder_exclude_patterns)
     old_folders = set(s.get('folder_exclude_patterns', []))
     
-    
+    # Only make changes if anything has actually changed, to avoid spamming the
+    # sublime console
     if new_files != old_files or new_folders != old_folders:        
         s.set('file_exclude_patterns', file_exclude_patterns)
         s.set('folder_exclude_patterns', folder_exclude_patterns)
