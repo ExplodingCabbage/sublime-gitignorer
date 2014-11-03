@@ -3,17 +3,28 @@ import subprocess
 import os
 import os.path
 import threading
+import platform
 from time import sleep
 
 # Used for output suppression when calling subprocess functions; see
 # http://stackoverflow.com/questions/10251391/suppressing-output-in-python-subprocess-call
 devnull = open(os.devnull, 'w')
 
+# Used to prevent a new command prompt window from popping up every time a new
+# process is spawned on Windows. See
+# https://docs.python.org/2/library/subprocess.html#subprocess.STARTUPINFO
+if platform.system() == 'Windows':
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags = subprocess.STARTF_USESHOWWINDOW
+    startupinfo.wShowWindow = SW_HIDE
+else:
+    startupinfo = None
+
 def start(): # Gets invoked at the bottom of this file.
     """
     Regularly (every 5s) updates the file_exclude_patterns setting from a
     background thread.
-    """
+    """    
     if is_first_launch():
         migrate_exclude_patterns()
         record_first_launch()
@@ -122,7 +133,8 @@ def parent_repo_path(folder):
     return subprocess.Popen(
         ['git', 'rev-parse', '--show-toplevel'],
         stdout=subprocess.PIPE,
-        cwd=folder
+        cwd=folder,
+        startupinfo=startupinfo
     ).stdout.read().decode('utf-8', 'ignore').strip()
 
 def find_git_repos(folder):
@@ -145,7 +157,8 @@ def repo_ignored_paths(git_repo):
     command_output = subprocess.Popen(
         ['git', 'clean', '-ndX'],
         stdout=subprocess.PIPE,
-        cwd=git_repo
+        cwd=git_repo,
+        startupinfo=startupinfo
     ).stdout.read()
     
     command_output = command_output.decode('utf-8', 'ignore')
