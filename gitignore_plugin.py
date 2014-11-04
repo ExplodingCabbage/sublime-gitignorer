@@ -30,13 +30,10 @@ def start(): # Gets invoked at the bottom of this file.
         record_first_launch()
     
     def run():
-        while True:
-            update_file_exclude_patterns()
-            sleep(5)
-            
-    thread = threading.Thread(target=run)
-    thread.daemon = True
-    thread.start()
+        update_file_exclude_patterns()
+        sublime.set_timeout(run, 5000)
+
+    run()
 
 def update_file_exclude_patterns():
     """
@@ -50,24 +47,21 @@ def update_file_exclude_patterns():
     file_exclude_patterns = s.get('extra_file_exclude_patterns', [])
     folder_exclude_patterns = s.get('extra_folder_exclude_patterns', [])
     for path in all_ignored_paths():
-        if os.path.isdir(path):
+        is_directory = os.path.isdir(path)
+        if platform.system() == 'Windows':
+            # For some bizarre reason Sublime wants all its filenames to look like
+            #     C/somedir/somefile
+            # instead of
+            #     C:\somedir\somefile
+            # as they are normally written on Windows, and will not understand the
+            # latter at all. All the other functions in this file return paths with
+            # OS-standard separtors and include the colon after the drive letter on
+            # Windows, so we need to convert them here to Sublime-format.
+            path = windows_path_to_sublime_path(path)
+        if is_directory:
             folder_exclude_patterns.append(path)
         else:
             file_exclude_patterns.append(path)
-    
-    if platform.system() == 'Windows':
-        # For some bizarre reason Sublime wants all its filenames to look like
-        #     C/somedir/somefile
-        # instead of
-        #     C:\somedir\somefile
-        # as they are normally written on Windows, and will not understand the
-        # latter at all. All the other functions in this file return paths with
-        # OS-standard separtors and include the colon after the drive letter on
-        # Windows, so we need to convert them here to Sublime-format.
-        folder_exclude_patterns = [windows_path_to_sublime_path(path)
-                                   for path in folder_exclude_patterns]
-        file_exclude_patterns = [windows_path_to_sublime_path(path)
-                                 for path in file_exclude_patterns]
 
     new_files = set(file_exclude_patterns)
     old_files = set(s.get('file_exclude_patterns', []))
@@ -77,8 +71,8 @@ def update_file_exclude_patterns():
     # Only make changes if anything has actually changed, to avoid spamming the
     # sublime console
     if new_files != old_files or new_folders != old_folders:        
-        s.set('file_exclude_patterns', file_exclude_patterns)
-        s.set('folder_exclude_patterns', folder_exclude_patterns)
+        s.set('file_exclude_patterns', list(file_exclude_patterns))
+        s.set('folder_exclude_patterns', list(folder_exclude_patterns))
         sublime.save_settings("Preferences.sublime-settings")
 
 def all_ignored_paths():
