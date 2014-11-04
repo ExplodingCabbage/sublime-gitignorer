@@ -51,7 +51,7 @@ def update_file_exclude_patterns():
     folder_exclude_patterns = s.get('extra_folder_exclude_patterns', [])
     for path in all_ignored_paths():
         if os.path.isdir(path):
-            folder_exclude_patterns.append(path.rstrip(os.path.sep))
+            folder_exclude_patterns.append(path)
         else:
             file_exclude_patterns.append(path)
     
@@ -190,7 +190,8 @@ def repo_ignored_paths(git_repo):
     # Each line in `lines` now looks something like:
     # "Would remove foo/bar/yourfile.txt"
     
-    relative_paths = [line.replace(u'Would remove ', u'', 1) for line in lines]
+    relative_paths = [line.replace(u'Would remove ', u'', 1).rstrip(u'/')
+                      for line in lines]
     absolute_paths = [os.path.join(git_repo, path) for path in relative_paths]
     
     return absolute_paths
