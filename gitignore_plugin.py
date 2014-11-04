@@ -16,7 +16,7 @@ devnull = open(os.devnull, 'w')
 if platform.system() == 'Windows':
     startupinfo = subprocess.STARTUPINFO()
     startupinfo.dwFlags = subprocess.STARTF_USESHOWWINDOW
-    startupinfo.wShowWindow = SW_HIDE
+    startupinfo.wShowWindow = subprocess.SW_HIDE
 else:
     startupinfo = None
 
@@ -119,7 +119,8 @@ def is_in_git_repo(folder):
         ["git", "rev-parse", "--is-inside-work-tree"],
         cwd=folder,
         stdout=devnull,
-        stderr=devnull
+        stderr=devnull,
+        startupinfo=startupinfo
     )
     
     return exit_code == 0
