@@ -16,4 +16,4 @@ Usage instructions:
 * Since the `"file_exclude_patterns"` and `"folder_exclude_patterns"` settings are now being managed programatically, if you want to *manually* set file or folder exclusion patterns in sublime, you can use the `"extra_file_exclude_patterns"` and `"extra_folder_exclude_patterns"` settings. Any file paths you list in here will automatically be included in your `"file_exclude_patterns"` and `"folder_exclude_patterns"` in addition to Git-ignored paths.
 * If you already have `"file_exclude_patterns"` or `"folder_exclude_patterns"` set, there is no need to back them up prior to installing this plugin; they will be automatically migrated to the `"extra_file_exclude_patterns"` and `"extra_folder_exclude_patterns"` settings on first launch.
 
-Currently tested on Ubuntu in Sublime Text 2 and Sublime Text 3. I haven't tested on Mac yet but it should work there too. Windows is not currently supported.
+Currently tested on Ubuntu and Windows in Sublime Text 2 and Sublime Text 3. I haven't tested on Mac yet but it should work there too.
