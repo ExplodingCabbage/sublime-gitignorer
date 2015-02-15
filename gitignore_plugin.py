@@ -22,8 +22,7 @@ else:
 
 def start(): # Gets invoked at the bottom of this file.
     """
-    Regularly (every 5s) updates the file_exclude_patterns setting from a
-    background thread.
+    Regularly (every 5s) updates the file_exclude_patterns setting.
     """    
     if is_first_launch():
         migrate_exclude_patterns()
