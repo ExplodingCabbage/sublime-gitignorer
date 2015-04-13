@@ -171,7 +171,8 @@ def repo_ignored_paths(git_repo):
         ['git', 'clean', '-ndX'],
         stdout=subprocess.PIPE,
         cwd=git_repo,
-        startupinfo=startupinfo
+        startupinfo=startupinfo,
+        env={'LANG':'C'}
     ).stdout.read()
     
     command_output = command_output.decode('utf-8', 'ignore')
