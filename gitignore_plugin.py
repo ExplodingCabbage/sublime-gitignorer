@@ -29,22 +29,36 @@ def start(): # Gets invoked at the bottom of this file.
         record_first_launch()
     
     def run():
-        update_file_exclude_patterns()
-        sublime.set_timeout(run, 5000)
+        while True:
+            patterns = new_exclude_patterns()
+            
+            if patterns:
+                def update():
+                    set_exclude_patterns(patterns)
 
-    run()
+                sublime.set_timeout(update, 1) # Needs to run on the main thread to avoid
+                                               #    RuntimeError: Must call on main thread, consider using
+                                               #    sublime.set_timeout(function, timeout)
+                                               # on Sublime Text 2
 
-def update_file_exclude_patterns():
+            sleep(5)
+
+    thread = threading.Thread(target=run)
+    thread.daemon = True
+    thread.start()
+
+def new_exclude_patterns():
     """
-    Updates the "file_exclude_patterns" preference to include all .gitignored
+    Calculates the new "file_exclude_patterns" preference to include all .gitignored
     files.
     
     Also includes any additional files or folders listed in the
     "extra_file_exclude_patterns" and "extra_folder_exclude_patterns" settings.
+
+    Returns `None` if there is nothing to update.
     """
-    s = sublime.load_settings("Preferences.sublime-settings")
-    file_exclude_patterns = s.get('extra_file_exclude_patterns', [])
-    folder_exclude_patterns = s.get('extra_folder_exclude_patterns', [])
+    file_exclude_patterns = safe_get_setting('extra_file_exclude_patterns', [])
+    folder_exclude_patterns = safe_get_setting('extra_folder_exclude_patterns', [])
     for path in all_ignored_paths():
         is_directory = os.path.isdir(path)
         if platform.system() == 'Windows':
@@ -63,16 +77,43 @@ def update_file_exclude_patterns():
             file_exclude_patterns.append(path)
 
     new_files = set(file_exclude_patterns)
-    old_files = set(s.get('file_exclude_patterns', []))
+    old_files = set(safe_get_setting('file_exclude_patterns', []))
     new_folders = set(folder_exclude_patterns)
-    old_folders = set(s.get('folder_exclude_patterns', []))
+    old_folders = set(safe_get_setting('folder_exclude_patterns', []))
     
     # Only make changes if anything has actually changed, to avoid spamming the
     # sublime console
-    if new_files != old_files or new_folders != old_folders:        
-        s.set('file_exclude_patterns', list(file_exclude_patterns))
-        s.set('folder_exclude_patterns', list(folder_exclude_patterns))
-        sublime.save_settings("Preferences.sublime-settings")
+    if new_files != old_files or new_folders != old_folders:
+        return {
+            'file_exclude_patterns': list(file_exclude_patterns),
+            'folder_exclude_patterns': list(folder_exclude_patterns)
+        }
+    else:
+        return None # Signal nothing to do
+
+def safe_get_setting(setting, default):
+    """
+    Thread-safe wrapper for sublime.load_settings(...).get(...), reluctantly necessary because nothing is safe in ST2 
+    (see http://stackoverflow.com/questions/29975674/which-operations-in-the-sublime-text-2-api-are-thread-safe )
+    """
+    wake_up_condition = threading.Condition()
+    wake_up_condition.acquire()
+    result_container = [] # For communicating between threads
+    def get_setting():
+        s = sublime.load_settings("Preferences.sublime-settings")
+        result_container.append(s.get(setting, default))
+        wake_up_condition.acquire()
+        wake_up_condition.notify()
+        wake_up_condition.release()
+
+    wake_up_condition.wait()
+    return result_container[0]
+
+def set_exclude_patterns(new_exclude_patterns): # not thread-safe
+    s = sublime.load_settings("Preferences.sublime-settings")
+    s.set('file_exclude_patterns', new_exclude_patterns['file_exclude_patterns'])
+    s.set('folder_exclude_patterns', new_exclude_patterns['folder_exclude_patterns'])
+    sublime.save_settings("Preferences.sublime-settings")
 
 def all_ignored_paths():
     """
@@ -190,11 +231,11 @@ def repo_ignored_paths(git_repo):
     
     return absolute_paths
     
-def is_first_launch():
-    s = sublime.load_settings("gitignorer.sublime-settings")
+def is_first_launch(): # not thread-safe
+    s = sublime.load_settings("Preferences.sublime-settings")
     return not s.get('_sublime_gitignorer_has_run', False)
     
-def migrate_exclude_patterns():
+def migrate_exclude_patterns(): # not thread-safe
     """
     Runs on first launch; purpose is to prevent people who have already set
     exclusion patterns from losing them when they install this package.
@@ -206,7 +247,7 @@ def migrate_exclude_patterns():
     s.set('extra_folder_exclude_patterns', existing_folder_exclude_patterns)
     sublime.save_settings("Preferences.sublime-settings")
     
-def record_first_launch():
+def record_first_launch(): # not thread-safe
     s = sublime.load_settings("gitignorer.sublime-settings")
     s.set('_sublime_gitignorer_has_run', True)
     sublime.save_settings("gitignorer.sublime-settings")
